@@ -1,0 +1,217 @@
+<%- include('partials/header', { title: 'شبکه‌های مجازی' }) %>
+
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-layer-group me-2"></i> ربات پایشگر
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/" class="btn btn-glass btn-sm text-white"><i class="fas fa-home me-1"></i> صفحه اصلی</a>
+            <a href="/logs" class="btn btn-glass btn-sm text-white"><i class="fas fa-bug me-1"></i> لاگ‌ها</a>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="text-white me-3 d-none d-md-block">کاربر: <%= user %></span>
+            <a href="/logout" class="btn btn-glass btn-sm"><i class="fas fa-sign-out-alt me-1"></i> خروج</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="glass-card">
+        <div class="card-header border-0 bg-transparent pb-3 d-flex justify-content-between align-items-center">
+            <h3 class="text-white mb-0"><i class="fas fa-sitemap me-2"></i> شبکه‌های مجازی</h3>
+            <button class="btn btn-glass btn-glass-primary" data-bs-toggle="modal" data-bs-target="#networkModal" onclick="resetNetworkForm()">
+                <i class="fas fa-plus me-2"></i> افزودن شبکه
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-glass align-middle">
+                    <thead>
+                        <tr>
+                            <th>نام</th>
+                            <th>آدرس (Base URL)</th>
+                            <th>آدرس API (اختیاری)</th>
+                            <th>وضعیت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (!networks || networks.length === 0) { %>
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-white-50">هیچ شبکه‌ای ثبت نشده است.</td>
+                            </tr>
+                        <% } %>
+                        <% (networks || []).forEach(n => { %>
+                            <tr>
+                                <td class="fw-bold"><%= n.name %></td>
+                                <td dir="ltr" class="text-white-50"><%= n.base_url %></td>
+                                <td dir="ltr" class="text-white-50"><%= n.api_base_url || '-' %></td>
+                                <td>
+                                    <span class="badge bg-<%= n.is_active ? 'success' : 'secondary' %> bg-opacity-75">
+                                        <%= n.is_active ? 'فعال' : 'غیرفعال' %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-glass text-info"
+                                            data-id="<%= n.id %>"
+                                            data-name="<%= n.name %>"
+                                            data-base-url="<%= n.base_url %>"
+                                            data-api-url="<%= n.api_base_url || '' %>"
+                                            data-active="<%= n.is_active ? '1' : '0' %>"
+                                            onclick="editNetworkFromButton(this)">
+                                            <i class="fas fa-edit me-1"></i> ویرایش
+                                        </button>
+                                        <button class="btn btn-sm btn-glass text-warning" onclick="toggleNetwork(<%= n.id %>, <%= n.is_active ? '0' : '1' %>)">
+                                            <i class="fas fa-power-off me-1"></i> <%= n.is_active ? 'غیرفعال' : 'فعال' %>
+                                        </button>
+                                        <button class="btn btn-sm btn-glass text-success" data-base-url="<%= n.base_url %>" onclick="testNetworkFromButton(this)">
+                                            <i class="fas fa-wifi me-1"></i> تست
+                                        </button>
+                                        <button class="btn btn-sm btn-glass text-danger" onclick="deleteNetwork(<%= n.id %>)">
+                                            <i class="fas fa-trash me-1"></i> حذف
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="networkModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content glass-card border-0" style="background: rgba(30,30,50,0.95);">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-white"><i class="fas fa-sitemap me-2"></i> شبکه مجازی</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="networkForm" method="POST" action="/networks/save">
+                    <input type="hidden" name="id" id="networkId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">نام شبکه</label>
+                            <input type="text" name="name" id="networkName" class="form-control glass-input" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-white">وضعیت</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="networkActive" checked>
+                                <label class="form-check-label text-white" for="networkActive">فعال</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">آدرس شبکه (بدون https://)</label>
+                        <input type="text" name="base_url" id="networkBaseUrl" class="form-control glass-input" placeholder="مثلاً: web.eitaa.com" required>
+                        <small class="text-white-50 d-block mt-1">آدرس به صورت host ذخیره می‌شود (بدون scheme و بدون / آخر).</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">آدرس API (اختیاری)</label>
+                        <input type="text" name="api_base_url" id="networkApiUrl" class="form-control glass-input" placeholder="مثلاً: https://api.example.com/v1">
+                    </div>
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-glass text-info" onclick="testNetworkFromForm()">
+                            <i class="fas fa-wifi me-1"></i> تست آدرس
+                        </button>
+                        <button type="submit" class="btn btn-glass btn-glass-primary">ذخیره</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetNetworkForm() {
+        document.getElementById('networkId').value = '';
+        document.getElementById('networkName').value = '';
+        document.getElementById('networkBaseUrl').value = '';
+        document.getElementById('networkApiUrl').value = '';
+        document.getElementById('networkActive').checked = true;
+    }
+
+    function editNetworkFromButton(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name') || '';
+        const baseUrl = btn.getAttribute('data-base-url') || '';
+        const apiUrl = btn.getAttribute('data-api-url') || '';
+        const isActive = btn.getAttribute('data-active') === '1';
+
+        document.getElementById('networkId').value = id || '';
+        document.getElementById('networkName').value = name;
+        document.getElementById('networkBaseUrl').value = baseUrl;
+        document.getElementById('networkApiUrl').value = apiUrl;
+        document.getElementById('networkActive').checked = isActive;
+        const modal = new bootstrap.Modal(document.getElementById('networkModal'));
+        modal.show();
+    }
+
+    async function toggleNetwork(id, isActive) {
+        try {
+            const res = await fetch('/api/networks/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ id, is_active: isActive })
+            });
+            const data = await res.json();
+            if (!data.success) return alert(data.message || 'خطا');
+            window.location.reload();
+        } catch (e) {
+            alert('خطا در ارتباط با سرور');
+        }
+    }
+
+    async function deleteNetwork(id) {
+        if (!confirm('شبکه حذف شود؟')) return;
+        try {
+            const res = await fetch('/api/networks/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (!data.success) return alert(data.message || 'خطا');
+            window.location.reload();
+        } catch (e) {
+            alert('خطا در ارتباط با سرور');
+        }
+    }
+
+    async function testNetwork(baseUrl) {
+        try {
+            const res = await fetch('/api/networks/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ base_url: baseUrl })
+            });
+            const data = await res.json();
+            if (!data.success) return alert(data.message || 'خطا');
+            alert(`OK\nURL: ${data.url}\nStatus: ${data.status}`);
+        } catch (e) {
+            alert('خطا در ارتباط با سرور');
+        }
+    }
+
+    function testNetworkFromButton(btn) {
+        const baseUrl = btn.getAttribute('data-base-url');
+        if (!baseUrl) return alert('آدرس نامعتبر است.');
+        testNetwork(baseUrl);
+    }
+
+    function testNetworkFromForm() {
+        const baseUrl = document.getElementById('networkBaseUrl').value;
+        if (!baseUrl) return alert('آدرس را وارد کنید.');
+        testNetwork(baseUrl);
+    }
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,225 @@
+<%- include('partials/header', { title: 'تنظیمات هوش مصنوعی' }) %>
+
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-layer-group me-2"></i> ربات پایشگر
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/" class="btn btn-glass btn-sm text-white"><i class="fas fa-home me-1"></i> صفحه اصلی</a>
+            <a href="/networks" class="btn btn-glass btn-sm text-white"><i class="fas fa-sitemap me-1"></i> شبکه‌ها</a>
+            <a href="/logs" class="btn btn-glass btn-sm text-white"><i class="fas fa-bug me-1"></i> لاگ‌ها</a>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="text-white me-3 d-none d-md-block">کاربر: <%= user %></span>
+            <a href="/logout" class="btn btn-glass btn-sm"><i class="fas fa-sign-out-alt me-1"></i> خروج</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="glass-card">
+                <div class="card-header border-0 bg-transparent pb-3 d-flex justify-content-between align-items-center">
+                    <h3 class="text-white mb-0"><i class="fas fa-robot me-2"></i> مدیریت سرویس‌های هوش مصنوعی</h3>
+                    <button class="btn btn-glass btn-glass-primary" data-bs-toggle="modal" data-bs-target="#providerModal" onclick="resetForm()">
+                        <i class="fas fa-plus me-2"></i> افزودن سرویس جدید
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-glass align-middle">
+                            <thead>
+                                <tr>
+                                    <th>نام سرویس</th>
+                                    <th>نوع</th>
+                                    <th>مدل</th>
+                                    <th>وضعیت</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (providers.length === 0) { %>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-white-50">هیچ سرویس هوش مصنوعی تعریف نشده است.</td>
+                                    </tr>
+                                <% } %>
+                                <% providers.forEach(p => { %>
+                                <tr>
+                                    <td><%= p.name %></td>
+                                    <td><span class="badge bg-info bg-opacity-50"><%= p.provider_type %></span></td>
+                                    <td dir="ltr"><%= p.model %></td>
+                                    <td>
+                                        <span class="badge bg-success bg-opacity-75">فعال</span>
+                                    </td>
+                                    <td>
+                                        <button
+                                            class="btn btn-sm btn-glass text-warning"
+                                            data-provider-id="<%= p.id %>"
+                                            data-provider-name="<%= p.name %>"
+                                            data-provider-type="<%= p.provider_type %>"
+                                            data-provider-model="<%= p.model %>"
+                                            data-provider-base-url="<%= p.base_url || '' %>"
+                                            onclick="editProvider(this)"
+                                        >
+                                            <i class="fas fa-edit"></i> ویرایش
+                                        </button>
+                                        <form action="/settings/provider/delete" method="POST" class="d-inline" onsubmit="return confirm('آیا از حذف این سرویس مطمئن هستید؟')">
+                                            <input type="hidden" name="id" value="<%= p.id %>">
+                                            <button type="submit" class="btn btn-sm btn-glass text-danger">
+                                                <i class="fas fa-trash"></i> حذف
+                                            </button>
+                                        </form>
+                                        <button class="btn btn-sm btn-glass text-info" onclick="testProvider(<%= p.id %>, this)">
+                                            <i class="fas fa-plug"></i> تست اتصال
+                                        </button>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer border-0 bg-transparent pt-3 text-center">
+                    <button class="btn btn-glass w-50" onclick="fullSystemTest()">
+                        <i class="fas fa-vial me-2"></i> تست کامل عملکرد سیستم
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="providerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card border-0" style="background: rgba(30, 30, 40, 0.95);">
+            <div class="modal-header border-bottom border-light border-opacity-10">
+                <h5 class="modal-title text-white" id="modalTitle">افزودن سرویس جدید</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/settings/provider" method="POST" id="providerForm">
+                    <input type="hidden" name="id" id="providerId">
+                    <div class="mb-3">
+                        <label class="form-label text-white">نام نمایشی</label>
+                        <input type="text" name="name" id="providerName" class="form-control glass-input" placeholder="مثلاً: ChatGPT اصلی" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">نوع سرویس</label>
+                        <select name="provider_type" id="providerType" class="form-select glass-input">
+                            <option value="openai">OpenAI (ChatGPT)</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="custom">Custom (Other)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">API Key</label>
+                        <input type="password" name="api_key" id="providerKey" class="form-control glass-input" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">نام مدل (Model)</label>
+                        <input type="text" name="model" id="providerModel" class="form-control glass-input" value="gpt-4o" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">آدرس پایه (Base URL) - اختیاری</label>
+                        <input type="text" name="base_url" id="providerBaseUrl" class="form-control glass-input" placeholder="https://api.openai.com/v1 یا https://api.avalai.ir/v1" dir="ltr">
+                        <small class="text-white-50">AvalAI: https://api.avalai.ir/v1 یا https://api.avalapis.ir/v1</small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-glass text-info" onclick="testFormConnection()">
+                            <i class="fas fa-wifi me-1"></i> تست اتصال API
+                        </button>
+                        <button type="submit" class="btn btn-glass btn-glass-primary">ذخیره</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetForm() {
+        document.getElementById('providerForm').reset();
+        document.getElementById('providerId').value = '';
+        document.getElementById('modalTitle').innerText = 'افزودن سرویس جدید';
+    }
+
+    function editProvider(btn) {
+        const ds = btn.dataset;
+        document.getElementById('providerId').value = ds.providerId || '';
+        document.getElementById('providerName').value = ds.providerName || '';
+        document.getElementById('providerType').value = ds.providerType || 'openai';
+        document.getElementById('providerKey').value = '';
+        document.getElementById('providerModel').value = ds.providerModel || 'gpt-3.5-turbo';
+        document.getElementById('providerBaseUrl').value = ds.providerBaseUrl || '';
+        document.getElementById('modalTitle').innerText = 'ویرایش سرویس';
+        
+        new bootstrap.Modal(document.getElementById('providerModal')).show();
+    }
+
+    function testProvider(providerId, btn) {
+        if (!btn) btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch('/api/test-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider_id: providerId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const extra = data.success ? `\nEndpoint: ${data.endpoint || '-'}\nModel: ${data.model || '-'}\nSample: ${data.sample || '-'}` : '';
+            alert((data.message || '') + extra);
+        })
+        .catch(err => alert('Error: ' + err))
+        .finally(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    function testFormConnection() {
+        const type = document.getElementById('providerType').value;
+        const key = document.getElementById('providerKey').value;
+        const model = document.getElementById('providerModel').value;
+        const baseUrl = document.getElementById('providerBaseUrl').value;
+        
+        if(!key) {
+            alert('لطفاً API Key را وارد کنید.');
+            return;
+        }
+
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch('/api/test-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider_type: type, api_key: key, model: model, base_url: baseUrl })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const extra = data.success ? `\nEndpoint: ${data.endpoint || '-'}\nModel: ${data.model || '-'}\nSample: ${data.sample || '-'}` : '';
+            alert((data.message || '') + extra);
+        })
+        .catch(err => alert('Error: ' + err))
+        .finally(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    function fullSystemTest() {
+        alert('این دکمه یک تست جامع از کل سیستم (اتصال به دیتابیس، وضعیت مرورگر و هوش مصنوعی) را اجرا می‌کند. (در حال پیاده‌سازی)');
+        // Implement full system test logic later if needed
+    }
+</script>
+
+<%- include('partials/footer') %>

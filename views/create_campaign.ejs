@@ -1,0 +1,317 @@
+<%- include('partials/header', { title: 'تعریف پروژه جدید' }) %>
+<!-- Persian Datepicker CSS -->
+<link rel="stylesheet" href="https://unpkg.com/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-layer-group me-2"></i> ربات پایشگر
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/" class="btn btn-glass btn-sm text-white"><i class="fas fa-home me-1"></i> صفحه اصلی</a>
+            <a href="/networks" class="btn btn-glass btn-sm text-white"><i class="fas fa-sitemap me-1"></i> شبکه‌ها</a>
+            <a href="/logs" class="btn btn-glass btn-sm text-white"><i class="fas fa-bug me-1"></i> لاگ‌ها</a>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="text-white me-3 d-none d-md-block">کاربر: <%= user %></span>
+            <a href="/logout" class="btn btn-glass btn-sm"><i class="fas fa-sign-out-alt me-1"></i> خروج</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="glass-card">
+                <div class="card-header border-0 bg-transparent pb-3">
+                    <% const isEdit = (typeof campaign !== 'undefined' && campaign); %>
+                    <h3 class="text-white mb-0">
+                        <i class="fas <%= isEdit ? 'fa-edit' : 'fa-plus-circle' %> me-2"></i>
+                        <%= isEdit ? 'ویرایش پروژه' : 'تعریف پروژه جدید' %>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form id="campaignForm">
+                        <div class="row">
+                            <div class="col-md-8 mb-4">
+                                <label class="form-label">عنوان پروژه</label>
+                                <input type="text" name="title" class="form-control glass-input" placeholder="مثلاً: مانیتورینگ انتخابات" value="<%= isEdit ? campaign.title : '' %>" required>
+                            </div>
+                            <div class="col-md-4 mb-4">
+                                <label class="form-label">هوش مصنوعی تحلیل‌گر</label>
+                                <select name="ai_provider_id" class="form-select glass-input">
+                                    <% if (typeof providers !== 'undefined' && providers.length > 0) { %>
+                                        <% providers.forEach(p => { %>
+                                            <option value="<%= p.id %>" class="text-dark" <%= isEdit && String(campaign.ai_provider_id) === String(p.id) ? 'selected' : '' %>><%= p.name %> (<%= p.provider_type %>)</option>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <option value="" disabled selected class="text-dark">هیچ هوش مصنوعی تعریف نشده است</option>
+                                    <% } %>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">تاریخ شروع کمپین</label>
+                                <input type="text" id="start_date_view" class="form-control glass-input" required>
+                                <input type="hidden" name="start_date" id="start_date_hidden" value="<%= isEdit && campaign.start_date ? new Date(campaign.start_date).getTime() : '' %>">
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">تاریخ پایان کمپین (اختیاری)</label>
+                                <input type="text" id="end_date_view" class="form-control glass-input">
+                                <input type="hidden" name="end_date" id="end_date_hidden" value="<%= isEdit && campaign.end_date ? new Date(campaign.end_date).getTime() : '' %>">
+                                <small class="text-white-50 mt-1 d-block">در صورت خالی بودن، تا توقف دستی ادامه می‌یابد.</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">لیست کلمات کلیدی</label>
+                            <div class="input-group mb-2">
+                                <input type="text" id="keywordInput" class="form-control glass-input" placeholder="کلمه کلیدی را وارد کنید">
+                                <button type="button" class="btn btn-glass btn-glass-primary" id="addKeywordBtn">
+                                    <i class="fas fa-plus"></i> افزودن
+                                </button>
+                            </div>
+                            <div id="keywordsList" class="d-flex flex-wrap gap-2 mt-2 p-3 rounded" style="background: rgba(0,0,0,0.1);">
+                                <small class="text-white-50 w-100 text-center py-2" id="noKeywordsMsg">هنوز کلمه‌ای اضافه نشده است</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">تعداد جستجو در هر کانال (برای هر کلمه کلیدی)</label>
+                                <input type="number" name="per_channel_limit" class="form-control glass-input" min="1" max="50" value="<%= isEdit && campaign.per_channel_limit ? campaign.per_channel_limit : 3 %>">
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">حداکثر تعداد کانال‌ها (برای هر کلمه کلیدی)</label>
+                                <input type="number" name="max_channels" class="form-control glass-input" min="1" max="200" value="<%= isEdit && campaign.max_channels ? campaign.max_channels : 20 %>">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">تکرار زمانی</label>
+                                <select name="frequency" class="form-select glass-input">
+                                    <option value="10" class="text-dark" <%= isEdit && String(campaign.frequency) === '10' ? 'selected' : '' %>>۱۰ دقیقه</option>
+                                    <option value="30" class="text-dark" <%= isEdit && String(campaign.frequency) === '30' ? 'selected' : '' %>>نیم ساعت</option>
+                                    <option value="60" class="text-dark" <%= isEdit && String(campaign.frequency) === '60' ? 'selected' : '' %>>۱ ساعت</option>
+                                    <option value="120" class="text-dark" <%= isEdit && String(campaign.frequency) === '120' ? 'selected' : '' %>>۲ ساعت</option>
+                                    <option value="180" class="text-dark" <%= isEdit && String(campaign.frequency) === '180' ? 'selected' : '' %>>۳ ساعت</option>
+                                    <option value="240" class="text-dark" <%= isEdit && String(campaign.frequency) === '240' ? 'selected' : '' %>>۴ ساعت</option>
+                                    <option value="300" class="text-dark" <%= isEdit && String(campaign.frequency) === '300' ? 'selected' : '' %>>۵ ساعت</option>
+                                    <option value="360" class="text-dark" <%= isEdit && String(campaign.frequency) === '360' ? 'selected' : '' %>>۶ ساعت</option>
+                                    <option value="420" class="text-dark" <%= isEdit && String(campaign.frequency) === '420' ? 'selected' : '' %>>۷ ساعت</option>
+                                    <option value="480" class="text-dark" <%= isEdit && String(campaign.frequency) === '480' ? 'selected' : '' %>>۸ ساعت</option>
+                                    <option value="540" class="text-dark" <%= isEdit && String(campaign.frequency) === '540' ? 'selected' : '' %>>۹ ساعت</option>
+                                    <option value="600" class="text-dark" <%= isEdit && String(campaign.frequency) === '600' ? 'selected' : '' %>>۱۰ ساعت</option>
+                                    <option value="660" class="text-dark" <%= isEdit && String(campaign.frequency) === '660' ? 'selected' : '' %>>۱۱ ساعت</option>
+                                    <option value="720" class="text-dark" <%= isEdit && String(campaign.frequency) === '720' ? 'selected' : '' %>>۱۲ ساعت</option>
+                                    <option value="780" class="text-dark" <%= isEdit && String(campaign.frequency) === '780' ? 'selected' : '' %>>۱۳ ساعت</option>
+                                    <option value="840" class="text-dark" <%= isEdit && String(campaign.frequency) === '840' ? 'selected' : '' %>>۱۴ ساعت</option>
+                                    <option value="900" class="text-dark" <%= isEdit && String(campaign.frequency) === '900' ? 'selected' : '' %>>۱۵ ساعت</option>
+                                    <option value="960" class="text-dark" <%= isEdit && String(campaign.frequency) === '960' ? 'selected' : '' %>>۱۶ ساعت</option>
+                                    <option value="1020" class="text-dark" <%= isEdit && String(campaign.frequency) === '1020' ? 'selected' : '' %>>۱۷ ساعت</option>
+                                    <option value="1080" class="text-dark" <%= isEdit && String(campaign.frequency) === '1080' ? 'selected' : '' %>>۱۸ ساعت</option>
+                                    <option value="1140" class="text-dark" <%= isEdit && String(campaign.frequency) === '1140' ? 'selected' : '' %>>۱۹ ساعت</option>
+                                    <option value="1200" class="text-dark" <%= isEdit && String(campaign.frequency) === '1200' ? 'selected' : '' %>>۲۰ ساعت</option>
+                                    <option value="1260" class="text-dark" <%= isEdit && String(campaign.frequency) === '1260' ? 'selected' : '' %>>۲۱ ساعت</option>
+                                    <option value="1320" class="text-dark" <%= isEdit && String(campaign.frequency) === '1320' ? 'selected' : '' %>>۲۲ ساعت</option>
+                                    <option value="1380" class="text-dark" <%= isEdit && String(campaign.frequency) === '1380' ? 'selected' : '' %>>۲۳ ساعت</option>
+                                    <option value="1440" class="text-dark" <%= isEdit && String(campaign.frequency) === '1440' ? 'selected' : '' %>>۲۴ ساعت</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">شبکه مجازی مورد نظر</label>
+                                <div class="input-group">
+                                    <select name="network" id="networkSelect" class="form-select glass-input">
+                                        <% const activeNetworks = (typeof networks !== 'undefined' && networks) ? networks : []; %>
+                                        <% if (activeNetworks.length === 0) { %>
+                                            <option value="" disabled selected class="text-dark">هیچ شبکه فعالی تعریف نشده است</option>
+                                        <% } else { %>
+                                            <% activeNetworks.forEach(n => { %>
+                                                <option value="<%= n.base_url %>" class="text-dark" <%= isEdit && campaign.network === n.base_url ? 'selected' : '' %>><%= n.name %> (<%= n.base_url %>)</option>
+                                            <% }) %>
+                                        <% } %>
+                                        <% if (isEdit && campaign.network && !activeNetworks.some(n => n.base_url === campaign.network)) { %>
+                                            <option value="<%= campaign.network %>" class="text-dark" selected><%= campaign.network %> (نامشخص)</option>
+                                        <% } %>
+                                    </select>
+                                    <button type="button" class="btn btn-glass text-info" id="testConnectionBtn">
+                                        <i class="fas fa-wifi me-1"></i> تست اتصال
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-light border-opacity-25">
+                            <a href="/" class="btn btn-glass text-white">
+                                <i class="fas fa-arrow-right me-2"></i> بازگشت
+                            </a>
+                            <button type="submit" class="btn btn-glass btn-glass-primary px-5 py-2">
+                                <i class="fas fa-check me-2"></i> <%= isEdit ? 'ذخیره تغییرات' : 'ذخیره و ایجاد' %>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Persian Datepicker JS -->
+<script src="https://unpkg.com/persian-date@1.1.0/dist/persian-date.min.js"></script>
+<script src="https://unpkg.com/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+
+<script>
+    const campaignId = <%= isEdit ? campaign.id : 'null' %>;
+    const keywords = <%- JSON.stringify((typeof keywords !== 'undefined' && keywords) ? keywords : []) %>;
+
+    $(document).ready(function() {
+        $("#start_date_view").pDatepicker({
+            format: 'YYYY/MM/DD HH:mm',
+            timePicker: { enabled: true },
+            altField: '#start_date_hidden',
+            altFormat: 'x', // Timestamp
+            autoClose: true
+        });
+
+        $("#end_date_view").pDatepicker({
+            format: 'YYYY/MM/DD HH:mm',
+            timePicker: { enabled: true },
+            altField: '#end_date_hidden',
+            altFormat: 'x', // Timestamp
+            autoClose: true
+        });
+
+        const startTs = Number($('#start_date_hidden').val());
+        if (startTs) {
+            $('#start_date_view').val(new persianDate(startTs).format('YYYY/MM/DD HH:mm'));
+        }
+        const endTs = Number($('#end_date_hidden').val());
+        if (endTs) {
+            $('#end_date_view').val(new persianDate(endTs).format('YYYY/MM/DD HH:mm'));
+        }
+
+        renderKeywords();
+
+        // Event Bindings
+        $('#addKeywordBtn').click(function() {
+            const val = $('#keywordInput').val().trim();
+            if(val && !keywords.includes(val)) {
+                keywords.push(val);
+                renderKeywords();
+                $('#keywordInput').val('');
+            }
+        });
+        
+        $('#keywordInput').keypress(function(e) {
+            if(e.which == 13) {
+                e.preventDefault();
+                $('#addKeywordBtn').click();
+            }
+        });
+
+        const updateTestConnectionState = () => {
+            const network = $('#networkSelect').val();
+            $('#testConnectionBtn').prop('disabled', !network);
+        };
+
+        updateTestConnectionState();
+        $('#networkSelect').on('change', updateTestConnectionState);
+
+        $('#testConnectionBtn').click(function() {
+            const network = $('#networkSelect').val();
+            if(!network) return;
+
+            const btn = $(this);
+            const originalText = btn.html();
+            btn.html('<i class="fas fa-spinner fa-spin me-1"></i> در حال بررسی...').prop('disabled', true);
+
+            fetch('/api/test-connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ network })
+            })
+            .then(res => res.json())
+            .then(data => {
+             alert(data.message || (data.loggedIn ? 'اتصال برقرار است و لاگین انجام شده.' : 'لطفا در تب باز شده لاگین کنید.'));
+            })
+            .catch(err => alert('Error: ' + err))
+            .finally(() => {
+                btn.html(originalText).prop('disabled', false);
+            });
+        });
+
+        $('#campaignForm').submit(function(e) {
+            e.preventDefault();
+            if(keywords.length === 0) {
+                alert('حداقل یک کلمه کلیدی وارد کنید.');
+                return;
+            }
+
+            const btn = $('button[type="submit"]');
+            const originalText = btn.html();
+            btn.html('<i class="fas fa-spinner fa-spin me-2"></i> در حال ذخیره...').prop('disabled', true);
+
+            const data = {
+                title: $('input[name="title"]').val(),
+                start_date: $('#start_date_hidden').val(),
+                end_date: $('#end_date_hidden').val(),
+                frequency: $('select[name="frequency"]').val(),
+                per_channel_limit: $('input[name="per_channel_limit"]').val(),
+                max_channels: $('input[name="max_channels"]').val(),
+                network: $('select[name="network"]').val(),
+                ai_provider_id: $('select[name="ai_provider_id"]').val(),
+                keywords: JSON.stringify(keywords)
+            };
+
+            const url = campaignId ? `/campaign/${campaignId}/edit` : '/campaign/create';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert(campaignId ? 'تغییرات با موفقیت ذخیره شد.' : 'کمپین با موفقیت ایجاد شد.');
+                    window.location.href = '/';
+                } else {
+                    alert('خطا: ' + data.message);
+                    btn.html(originalText).prop('disabled', false);
+                }
+            });
+        });
+    });
+
+    function renderKeywords() {
+        $('#keywordsList').empty();
+        if(keywords.length === 0) {
+            $('#keywordsList').html('<small class="text-white-50 w-100 text-center py-2" id="noKeywordsMsg">هنوز کلمه‌ای اضافه نشده است</small>');
+            return;
+        }
+        
+        keywords.forEach((k, index) => {
+            $('#keywordsList').append(`
+                <span class="badge bg-white text-dark p-2 d-inline-flex align-items-center gap-2 animate__animated animate__fadeIn" style="white-space: nowrap;">
+                    <span>${k}</span>
+                    <button type="button" class="btn btn-link p-0 m-0 text-danger" style="line-height: 1; text-decoration: none; cursor: pointer;" onclick="removeKeyword(${index})" aria-label="حذف">
+                        <span aria-hidden="true" style="font-size: 18px; font-weight: 700; display: inline-block; transform: translateY(-1px);">×</span>
+                    </button>
+                </span>
+            `);
+        });
+    }
+
+    window.removeKeyword = function(index) {
+        keywords.splice(index, 1);
+        renderKeywords();
+    }
+
+</script>
+
+<%- include('partials/footer') %>

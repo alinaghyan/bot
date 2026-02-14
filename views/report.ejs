@@ -1,0 +1,349 @@
+<%- include('partials/header', { title: 'گزارش کمپین' }) %>
+
+<nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-layer-group me-2"></i> ربات پایشگر
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="/" class="btn btn-glass btn-sm text-white"><i class="fas fa-home me-1"></i> صفحه اصلی</a>
+            <a href="/networks" class="btn btn-glass btn-sm text-white"><i class="fas fa-sitemap me-1"></i> شبکه‌ها</a>
+            <a href="/logs" class="btn btn-glass btn-sm text-white"><i class="fas fa-bug me-1"></i> لاگ‌ها</a>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="text-white me-3 d-none d-md-block">کاربر: <%= user %></span>
+            <a href="/logout" class="btn btn-glass btn-sm"><i class="fas fa-sign-out-alt me-1"></i> خروج</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white fw-bold"><i class="fas fa-chart-bar me-2"></i> گزارش کمپین: <%= campaign.title %></h2>
+        <a href="/" class="btn btn-glass text-white">
+            <i class="fas fa-arrow-right me-2"></i> بازگشت
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <div class="glass-card h-100">
+                <div class="card-header border-0 bg-transparent fw-bold text-center">وضعیت تحلیل‌ها</div>
+                <div class="card-body">
+                    <%
+                        const total = (stats.approve || 0) + (stats.reject || 0) + (stats['not related'] || 0);
+                        const pApprove = total ? Math.round(((stats.approve || 0) / total) * 100) : 0;
+                        const pReject = total ? Math.round(((stats.reject || 0) / total) * 100) : 0;
+                        const pNotRelated = total ? Math.round(((stats['not related'] || 0) / total) * 100) : 0;
+                    %>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between small text-white-50 mb-1">
+                            <span>تایید شده</span>
+                            <span dir="ltr"><%= pApprove %>%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; background: rgba(255,255,255,0.12);">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: <%= pApprove %>%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between small text-white-50 mb-1">
+                            <span>رد شده</span>
+                            <span dir="ltr"><%= pReject %>%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; background: rgba(255,255,255,0.12);">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: <%= pReject %>%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between small text-white-50 mb-1">
+                            <span>بی‌ارتباط</span>
+                            <span dir="ltr"><%= pNotRelated %>%</span>
+                        </div>
+                        <div class="progress" style="height: 10px; background: rgba(255,255,255,0.12);">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: <%= pNotRelated %>%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="glass-card h-100">
+                <div class="card-header border-0 bg-transparent fw-bold mb-3">خلاصه عملکرد</div>
+                <div class="card-body">
+                    <div class="row text-center h-100 align-items-center">
+                        <div class="col-md-4 mb-3">
+                            <div class="p-4 rounded-3" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                <h2 class="text-success fw-bold mb-0"><%= stats.approve || 0 %></h2>
+                                <small class="text-white-50">تایید شده</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-4 rounded-3" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                <h2 class="text-danger fw-bold mb-0"><%= stats.reject || 0 %></h2>
+                                <small class="text-white-50">رد شده</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-4 rounded-3" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                                <h2 class="text-warning fw-bold mb-0"><%= stats['not related'] || 0 %></h2>
+                                <small class="text-white-50">بی‌ارتباط</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card mb-4">
+        <div class="card-header border-0 bg-transparent fw-bold mb-2">
+            <i class="fas fa-search me-2"></i> آمار جستجو (بر اساس نتایج ذخیره‌شده)
+        </div>
+        <div class="card-body">
+            <%
+                const _keywordTotals = (typeof keywordTotals !== 'undefined' && Array.isArray(keywordTotals)) ? keywordTotals : [];
+                const _keywordChannelRows = (typeof keywordChannelRows !== 'undefined' && Array.isArray(keywordChannelRows)) ? keywordChannelRows : [];
+                const _channelTotalsRows = (typeof channelTotalsRows !== 'undefined' && Array.isArray(channelTotalsRows)) ? channelTotalsRows : [];
+            %>
+            <div class="row">
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <div class="fw-bold mb-2 text-white-50">به تفکیک کلمه کلیدی</div>
+                    <div class="table-responsive">
+                        <table class="table table-glass align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>کلمه کلیدی</th>
+                                    <th class="text-center">تعداد نتایج</th>
+                                    <th class="text-center">تعداد کانال</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (_keywordTotals.length === 0) { %>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-white-50 py-3">هنوز نتیجه‌ای ثبت نشده است</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% _keywordTotals.forEach(r => { %>
+                                        <tr>
+                                            <td><%= r.keyword %></td>
+                                            <td class="text-center"><%= Number(r.total || 0).toLocaleString('fa-IR') %></td>
+                                            <td class="text-center"><%= Number(r.channels || 0).toLocaleString('fa-IR') %></td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="fw-bold mb-2 text-white-50">به تفکیک کانال</div>
+                    <div class="table-responsive">
+                        <table class="table table-glass align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>کانال</th>
+                                    <th class="text-center">تعداد نتایج</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (_channelTotalsRows.length === 0) { %>
+                                    <tr>
+                                        <td colspan="2" class="text-center text-white-50 py-3">هنوز نتیجه‌ای ثبت نشده است</td>
+                                    </tr>
+                                <% } else { %>
+                                    <% _channelTotalsRows.slice(0, 20).forEach(r => { %>
+                                        <tr>
+                                            <td><%= r.channel_name || r.channel_id || '-' %></td>
+                                            <td class="text-center"><%= Number(r.cnt || 0).toLocaleString('fa-IR') %></td>
+                                        </tr>
+                                    <% }) %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <% if (_channelTotalsRows.length > 20) { %>
+                        <div class="small text-white-50 mt-2">فقط ۲۰ کانال اول نمایش داده می‌شود</div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <div class="fw-bold mb-2 text-white-50">به تفکیک کلمه کلیدی در هر کانال</div>
+                <div class="table-responsive">
+                    <table class="table table-glass align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>کلمه کلیدی</th>
+                                <th>کانال</th>
+                                <th class="text-center">تعداد نتایج</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (_keywordChannelRows.length === 0) { %>
+                                <tr>
+                                    <td colspan="3" class="text-center text-white-50 py-3">هنوز نتیجه‌ای ثبت نشده است</td>
+                                </tr>
+                            <% } else { %>
+                                <% _keywordChannelRows.slice(0, 50).forEach(r => { %>
+                                    <tr>
+                                        <td><%= r.keyword %></td>
+                                        <td><%= r.channel_name || r.channel_id || '-' %></td>
+                                        <td class="text-center"><%= Number(r.cnt || 0).toLocaleString('fa-IR') %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+                <% if (_keywordChannelRows.length > 50) { %>
+                    <div class="small text-white-50 mt-2">فقط ۵۰ ردیف اول نمایش داده می‌شود</div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <div class="card-header border-0 bg-transparent fw-bold mb-2 d-flex justify-content-between align-items-center">
+            <div><i class="fas fa-history me-2"></i> آخرین نتایج</div>
+            <button class="btn btn-sm btn-glass text-danger" id="deleteSelectedBtn" onclick="deleteSelectedResults()" disabled>
+                <i class="fas fa-trash me-1"></i> حذف انتخاب‌شده‌ها
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-glass align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 48px;">
+                                <input type="checkbox" class="form-check-input" id="selectAllResults">
+                            </th>
+                            <th>متن پست</th>
+                            <th>کانال</th>
+                            <th>اعضا کانال/گروه</th>
+                            <th>بازدید پست</th>
+                            <th>امتیاز</th>
+                            <th>نتیجه</th>
+                            <th>رپورتاژ</th>
+                            <th>تاریخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (results.length === 0) { %>
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-white-50">
+                                    هنوز داده‌ای جمع‌آوری نشده است
+                                </td>
+                            </tr>
+                        <% } %>
+                        <% results.forEach(row => { %>
+                        <tr class="<%= row.is_reportage ? 'bg-warning bg-opacity-10' : '' %>">
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input result-checkbox" value="<%= row.id %>">
+                            </td>
+                            <td style="max-width: 300px;">
+                                <div class="text-truncate" title="<%= row.post_text %>"><%= row.post_text %></div>
+                                <a href="<%= row.post_url %>" target="_blank" class="small text-info text-decoration-none">
+                                    <i class="fas fa-external-link-alt me-1"></i> مشاهده لینک
+                                </a>
+                            </td>
+                            <td><%= row.channel_name %></td>
+                            <td><%= Number(row.member_count || 0) > 0 ? Number(row.member_count || 0).toLocaleString('fa-IR') : '-' %></td>
+                            <td><%= Number(row.view_count || 0) > 0 ? Number(row.view_count || 0).toLocaleString('fa-IR') : '-' %></td>
+                            <td>
+                                <span class="badge rounded-pill bg-<%= Number(row.analysis_score || 0) > 15 ? 'success' : (Number(row.analysis_score || 0) < 5 ? 'danger' : 'warning') %> bg-opacity-75">
+                                    <%= Number(row.analysis_score || 0) %>
+                                </span>
+                            </td>
+                            <td>
+                                <% 
+                                    let badgeClass = 'secondary';
+                                    if(row.analysis_result === 'approve') badgeClass = 'success';
+                                    if(row.analysis_result === 'reject') badgeClass = 'danger';
+                                    let resultText = row.analysis_result;
+                                    if(resultText === 'approve') resultText = 'تایید';
+                                    if(resultText === 'reject') resultText = 'رد';
+                                    if(resultText === 'not related') resultText = 'بی‌ارتباط';
+                                %>
+                                <span class="badge bg-<%= badgeClass %> bg-opacity-75"><%= resultText %></span>
+                            </td>
+                            <td class="text-center"><%= row.is_reportage ? 'بله' : 'خیر' %></td>
+                            <td dir="ltr" class="small text-white-50">
+                                <%= row.post_date ? row.post_date : (row.checked_at ? new Date(row.checked_at).toLocaleString('fa-IR') : '-') %>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const campaignId = <%= campaign.id %>;
+
+    function getSelectedResultIds() {
+        return Array.from(document.querySelectorAll('.result-checkbox:checked'))
+            .map((el) => Number(el.value))
+            .filter((n) => Number.isFinite(n) && n > 0);
+    }
+
+    function updateDeleteButtonState() {
+        const ids = getSelectedResultIds();
+        const btn = document.getElementById('deleteSelectedBtn');
+        if (btn) btn.disabled = ids.length === 0;
+    }
+
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'selectAllResults') {
+            const checked = e.target.checked;
+            document.querySelectorAll('.result-checkbox').forEach((cb) => { cb.checked = checked; });
+            updateDeleteButtonState();
+        }
+        if (e.target && e.target.classList && e.target.classList.contains('result-checkbox')) {
+            const all = Array.from(document.querySelectorAll('.result-checkbox'));
+            const allChecked = all.length > 0 && all.every((cb) => cb.checked);
+            const selectAll = document.getElementById('selectAllResults');
+            if (selectAll) selectAll.checked = allChecked;
+            updateDeleteButtonState();
+        }
+    });
+
+    async function deleteSelectedResults() {
+        const ids = getSelectedResultIds();
+        if (ids.length === 0) return;
+        if (!confirm(`حذف ${ids.length} مورد انتخاب‌شده؟`)) return;
+
+        const btn = document.getElementById('deleteSelectedBtn');
+        const original = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> در حال حذف...'; }
+
+        try {
+            const res = await fetch('/api/results/delete', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ campaign_id: campaignId, ids })
+            });
+            const raw = await res.text();
+            let data;
+            try { data = JSON.parse(raw); } catch { data = { success: false, message: raw }; }
+            if (!data.success) {
+                alert(data.message || 'خطا در حذف');
+                if (btn) { btn.disabled = false; btn.innerHTML = original; }
+                return;
+            }
+            window.location.reload();
+        } catch (e) {
+            alert('خطا در ارتباط با سرور');
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+        }
+    }
+
+    updateDeleteButtonState();
+</script>
+
+<%- include('partials/footer') %>

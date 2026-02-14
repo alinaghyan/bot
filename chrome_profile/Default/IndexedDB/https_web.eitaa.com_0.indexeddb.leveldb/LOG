@@ -1,0 +1,12 @@
+2026/02/13-18:04:39.603 92e8 Reusing MANIFEST C:\xampp\htdocs\bot\chrome_profile\Default\IndexedDB\https_web.eitaa.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/02/13-18:04:39.603 92e8 Recovering log #31
+2026/02/13-18:04:39.610 92e8 Reusing old log C:\xampp\htdocs\bot\chrome_profile\Default\IndexedDB\https_web.eitaa.com_0.indexeddb.leveldb/000031.log 
+2026/02/13-18:04:40.397 41d8 Level-0 table #37: started
+2026/02/13-18:04:40.409 41d8 Level-0 table #37: 1878751 bytes OK
+2026/02/13-18:04:40.411 41d8 Delete type=0 #31
+2026/02/13-18:04:52.120 41d8 Compacting 1@1 + 1@2 files
+2026/02/13-18:04:52.129 41d8 Generated table #38@1: 1760 keys, 776452 bytes
+2026/02/13-18:04:52.129 41d8 Compacted 1@1 + 1@2 files => 776452 bytes
+2026/02/13-18:04:52.130 41d8 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/02/13-18:04:52.130 41d8 Delete type=2 #34
+2026/02/13-18:04:52.130 41d8 Delete type=2 #37

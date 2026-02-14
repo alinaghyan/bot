@@ -1,0 +1,5 @@
+api/update_campaign.php
+api/save_campaign.php
+api/logs/bot.log
+api/delete_campaign.php
+api/bot_control.php

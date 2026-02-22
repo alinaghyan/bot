@@ -4,6 +4,7 @@ const stringSimilarity = require('string-similarity');
 const path = require('path');
 const { launchBrowser } = require('./puppeteer-browser');
 const logger = require('./logger');
+const { buildChatCompletionsUrl } = require('./ai-provider-utils');
 
 const runningCampaigns = new Set();
 const profileDir = path.join(__dirname, 'chrome_profile');
@@ -64,23 +65,6 @@ async function getAIProvider(campaignId) {
 async function analyzeWithAI(text, keyword, url, provider) {
     if (!provider) return { analyse_result: 'pending', analyse_score: 0 };
 
-    const buildChatCompletionsUrl = (baseUrl) => {
-        if (!baseUrl) {
-            if (provider.api_key && String(provider.api_key).trim().toLowerCase().startsWith('aa-')) {
-                baseUrl = 'https://api.avalai.ir/v1';
-            } else {
-                return 'https://api.openai.com/v1/chat/completions';
-            }
-        }
-        let u = String(baseUrl).trim();
-        if (!u) return 'https://api.openai.com/v1/chat/completions';
-        if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
-        u = u.replace(/\/+$/, '');
-        if (/\/chat\/completions$/i.test(u)) return u;
-        if (!/\/v1$/i.test(u)) u = `${u}/v1`;
-        return `${u}/chat/completions`;
-    };
-
     const systemMsg =
         'You are a strict JSON-only classifier. Return only valid JSON with keys analyse_result and analyse_score.';
 
@@ -133,7 +117,7 @@ async function analyzeWithAI(text, keyword, url, provider) {
     };
 
     try {
-        const apiUrl = buildChatCompletionsUrl(provider.base_url);
+        const apiUrl = buildChatCompletionsUrl(provider.base_url, provider);
 
         const payload = {
             model: provider.model || "gpt-3.5-turbo",

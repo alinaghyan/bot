@@ -1,0 +1,50 @@
+<%
+    const active = String(typeof activePage !== 'undefined' ? activePage : 'dashboard');
+    const ai = (typeof aiHeaderStatus !== 'undefined' && aiHeaderStatus) ? aiHeaderStatus : {};
+    const aiConnBadgeClass =
+        ai.lastTestStatus === true ? 'bg-success' :
+        ai.lastTestStatus === false ? 'bg-danger' : 'bg-secondary';
+    const aiConnText =
+        ai.lastTestStatus === true ? 'متصل' :
+        ai.lastTestStatus === false ? 'ناموفق' : 'نامشخص';
+%>
+<style>
+    body .navbar.navbar-expand-lg.navbar-glass.sticky-top {
+        display: none !important;
+    }
+    body .navbar.navbar-unified {
+        display: flex !important;
+    }
+</style>
+<nav class="navbar navbar-expand-lg navbar-unified sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-layer-group me-2"></i> ربات پایشگر
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarUnified">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarUnified">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link <%= active === 'dashboard' ? 'active' : '' %>" href="/">داشبورد</a></li>
+                <li class="nav-item"><a class="nav-link <%= active === 'campaign' ? 'active' : '' %>" href="/campaign/create">پروژه جدید</a></li>
+                <li class="nav-item"><a class="nav-link <%= active === 'settings' ? 'active' : '' %>" href="/settings">هوش مصنوعی</a></li>
+                <li class="nav-item"><a class="nav-link <%= active === 'networks' ? 'active' : '' %>" href="/networks">شبکه‌ها</a></li>
+                <li class="nav-item"><a class="nav-link <%= active === 'logs' ? 'active' : '' %>" href="/logs">لاگ‌ها</a></li>
+            </ul>
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge <%= ai.tokenConfigured ? 'bg-success' : 'bg-warning text-dark' %> bg-opacity-75">
+                        توکن: <%= ai.tokenConfigured ? 'تنظیم شده' : 'تنظیم نشده' %>
+                    </span>
+                    <span class="badge <%= aiConnBadgeClass %> bg-opacity-75">AI: <%= aiConnText %></span>
+                    <span class="badge bg-info bg-opacity-75"><%= ai.hasProvider ? (ai.providerName || '-') : 'Provider: تعریف نشده' %></span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-white-50 small d-none d-xl-inline"><%= user ? ('کاربر: ' + user) : '' %></span>
+                    <a href="/logout" class="btn btn-glass btn-sm"><i class="fas fa-sign-out-alt me-1"></i> خروج</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

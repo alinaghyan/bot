@@ -1,23 +1,6 @@
 const axios = require('axios');
 const db = require('../database');
-
-function buildChatCompletionsUrl(provider) {
-  let baseUrl = provider?.base_url;
-  if (!baseUrl) {
-    if (provider.api_key && String(provider.api_key).trim().toLowerCase().startsWith('aa-')) {
-      baseUrl = 'https://api.avalai.ir/v1';
-    } else {
-      return 'https://api.openai.com/v1/chat/completions';
-    }
-  }
-  let u = String(baseUrl).trim();
-  if (!u) return 'https://api.openai.com/v1/chat/completions';
-  if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
-  u = u.replace(/\/+$/, '');
-  if (/\/chat\/completions$/i.test(u)) return u;
-  if (!/\/v1$/i.test(u)) u = `${u}/v1`;
-  return `${u}/chat/completions`;
-}
+const { buildChatCompletionsUrl } = require('../ai-provider-utils');
 
 function safeParse(content) {
   if (!content) return { analyse_result: 'error', analyse_score: 0 };
@@ -58,7 +41,7 @@ async function main() {
     return;
   }
   const provider = providers[0];
-  const apiUrl = buildChatCompletionsUrl(provider);
+  const apiUrl = buildChatCompletionsUrl(provider.base_url, provider);
 
   const prompt = `محتوای «${text}» که در لینک این پست «${url}» مشاهده می شود را بررسی کن و از بین گزینه های «تایید / بی ارتباط / مخالف»  با توجه به کلمه کلیدی «${keyword}» نتیجه را به من بگو 
 همچنین اگر عدد ۱۰ را خنثی در نظر بگیریم شدید ترین نوع تایید ۲۰ و شدید ترین نوع مخالفت ۰ است. امتیاز مورد نظر خود را بعد از بررسی متن پست به من بگو. این نتیجه را به صورت json و با کلیدهای زیر ارسال کن : 
@@ -90,4 +73,3 @@ main()
     console.error('[AI][error]', e?.response?.status, e?.response?.data || e?.message);
     process.exit(1);
   });
-

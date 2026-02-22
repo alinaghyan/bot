@@ -10,11 +10,13 @@ async function migrate() {
             CREATE TABLE IF NOT EXISTS ai_providers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
-                provider_type VARCHAR(50) NOT NULL DEFAULT 'openai', -- openai, deepseek, custom
+                provider_type VARCHAR(50) NOT NULL DEFAULT 'openai', -- openai, avalai, deepseek, custom
                 api_key VARCHAR(255) NOT NULL,
                 model VARCHAR(100) NOT NULL DEFAULT 'gpt-3.5-turbo',
                 base_url VARCHAR(255), -- For custom endpoints or proxies
                 is_active BOOLEAN DEFAULT TRUE,
+                last_test_status TINYINT(1) NULL DEFAULT NULL,
+                last_test_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
         `);

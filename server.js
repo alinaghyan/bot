@@ -1,3 +1,4 @@
+require('./env-loader');
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
@@ -11,15 +12,21 @@ const axios = require('axios');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const SESSION_SECRET = String(process.env.SESSION_SECRET || '').trim() || 'change-me-in-env';
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-    secret: 'secret_key',
+    secret: SESSION_SECRET,
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: String(process.env.SESSION_COOKIE_SECURE || '').trim() === '1'
+    }
 }));
 
 app.set('view engine', 'ejs');
@@ -84,6 +91,24 @@ const requireLogin = (req, res, next) => {
     next();
 };
 
+app.use(async (req, res, next) => {
+    res.locals.aiHeaderStatus = {
+        hasProvider: false,
+        providerName: '-',
+        providerType: '-',
+        model: '-',
+        baseUrl: '',
+        tokenConfigured: false,
+        lastTestStatus: null,
+        lastTestAt: null
+    };
+    if (!req.session?.userId) return next();
+    try {
+        res.locals.aiHeaderStatus = await getAIHeaderStatus();
+    } catch {}
+    next();
+});
+
 function normalizeBaseHost(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -99,6 +124,73 @@ function normalizeApiBaseUrl(value) {
     if (!/^https?:\/\//i.test(v)) v = `https://${v}`;
     return v;
 }
+
+const aiHeaderCache = {
+    at: 0,
+    data: null
+};
+
+async function getAIHeaderStatus() {
+    const now = Date.now();
+    if (aiHeaderCache.data && (now - aiHeaderCache.at) < 15000) return aiHeaderCache.data;
+
+    let provider = null;
+    try {
+        const [rows] = await db.query(
+            `SELECT id, name, provider_type, model, base_url, api_key, last_test_status, last_test_at
+             FROM ai_providers
+             WHERE is_active = 1
+             ORDER BY created_at DESC
+             LIMIT 1`
+        );
+        provider = rows[0] || null;
+    } catch {
+        const [rows] = await db.query(
+            `SELECT id, name, provider_type, model, base_url, api_key
+             FROM ai_providers
+             WHERE is_active = 1
+             ORDER BY created_at DESC
+             LIMIT 1`
+        );
+        provider = rows[0] || null;
+    }
+
+    const status = provider
+        ? {
+            hasProvider: true,
+            providerName: provider.name || '-',
+            providerType: provider.provider_type || '-',
+            model: provider.model || '-',
+            baseUrl: provider.base_url || '',
+            tokenConfigured: !!String(provider.api_key || '').trim(),
+            lastTestStatus:
+                provider.last_test_status === null || typeof provider.last_test_status === 'undefined'
+                    ? null
+                    : Number(provider.last_test_status) === 1,
+            lastTestAt: provider.last_test_at || null
+        }
+        : {
+            hasProvider: false,
+            providerName: '-',
+            providerType: '-',
+            model: '-',
+            baseUrl: '',
+            tokenConfigured: false,
+            lastTestStatus: null,
+            lastTestAt: null
+        };
+
+    aiHeaderCache.at = now;
+    aiHeaderCache.data = status;
+    return status;
+}
+
+function invalidateAIHeaderCache() {
+    aiHeaderCache.at = 0;
+    aiHeaderCache.data = null;
+}
+
+global.invalidateAIHeaderCache = invalidateAIHeaderCache;
 
 async function ensureNetworksTable() {
     const [tables] = await db.query("SHOW TABLES LIKE 'networks'");
@@ -270,6 +362,17 @@ app.post('/campaign/create', requireLogin, async (req, res) => {
     const { title, start_date, end_date, frequency, network, keywords, ai_provider_id, per_channel_limit, max_channels } = req.body;
     const conn = await db.getConnection();
     try {
+        if (!String(title || '').trim()) return res.json({ success: false, message: 'title is required' });
+        if (!String(network || '').trim()) return res.json({ success: false, message: 'network is required' });
+        const providerId = Number(ai_provider_id);
+        if (!Number.isFinite(providerId) || providerId <= 0) {
+            return res.json({ success: false, message: 'valid ai_provider_id is required' });
+        }
+        const [providerRows] = await conn.query('SELECT id FROM ai_providers WHERE id = ? AND is_active = 1 LIMIT 1', [providerId]);
+        if (providerRows.length === 0) {
+            return res.json({ success: false, message: 'AI provider is invalid or inactive' });
+        }
+
         // start_date and end_date are expected to be timestamps (ms) or ISO strings from frontend
         // If they are timestamps as strings, convert to int
         const start = isNaN(start_date) ? new Date(start_date) : new Date(parseInt(start_date));
@@ -286,7 +389,7 @@ app.post('/campaign/create', requireLogin, async (req, res) => {
                 Math.max(1, Math.min(50, Number(per_channel_limit) || 3)),
                 Math.max(1, Math.min(200, Number(max_channels) || 20)),
                 network,
-                ai_provider_id,
+                providerId,
                 'inactive'
             ]
         );
@@ -393,6 +496,17 @@ app.post('/campaign/:id/edit', requireLogin, async (req, res) => {
     const { title, start_date, end_date, frequency, network, keywords, ai_provider_id, per_channel_limit, max_channels } = req.body;
     const conn = await db.getConnection();
     try {
+        if (!String(title || '').trim()) return res.json({ success: false, message: 'title is required' });
+        if (!String(network || '').trim()) return res.json({ success: false, message: 'network is required' });
+        const providerId = Number(ai_provider_id);
+        if (!Number.isFinite(providerId) || providerId <= 0) {
+            return res.json({ success: false, message: 'valid ai_provider_id is required' });
+        }
+        const [providerRows] = await conn.query('SELECT id FROM ai_providers WHERE id = ? AND is_active = 1 LIMIT 1', [providerId]);
+        if (providerRows.length === 0) {
+            return res.json({ success: false, message: 'AI provider is invalid or inactive' });
+        }
+
         const start = isNaN(start_date) ? new Date(start_date) : new Date(parseInt(start_date));
         const end = end_date ? (isNaN(end_date) ? new Date(end_date) : new Date(parseInt(end_date))) : null;
 
@@ -407,7 +521,7 @@ app.post('/campaign/:id/edit', requireLogin, async (req, res) => {
                 Math.max(1, Math.min(50, Number(per_channel_limit) || 3)),
                 Math.max(1, Math.min(200, Number(max_channels) || 20)),
                 network,
-                ai_provider_id,
+                providerId,
                 id
             ]
         );
@@ -449,6 +563,15 @@ async function ensureSchema() {
         }
 
         await ensureNetworksTable();
+
+        const [p1] = await db.query("SHOW COLUMNS FROM ai_providers LIKE 'last_test_status'");
+        if (p1.length === 0) {
+            await db.query("ALTER TABLE ai_providers ADD COLUMN last_test_status TINYINT(1) NULL DEFAULT NULL AFTER is_active");
+        }
+        const [p2] = await db.query("SHOW COLUMNS FROM ai_providers LIKE 'last_test_at'");
+        if (p2.length === 0) {
+            await db.query("ALTER TABLE ai_providers ADD COLUMN last_test_at TIMESTAMP NULL DEFAULT NULL AFTER last_test_status");
+        }
     } catch (e) {
         logger.error('Schema ensure failed', e);
     }
@@ -499,12 +622,37 @@ app.post('/api/stop-bot', requireLogin, async (req, res) => {
 
 // Delete Campaign API
 app.post('/api/delete-campaign', requireLogin, async (req, res) => {
-    const { id } = req.body;
+    const id = Number(req.body?.id);
+    if (!Number.isFinite(id) || id <= 0) {
+        return res.json({ success: false, message: 'invalid campaign id' });
+    }
+    const conn = await db.getConnection();
     try {
-        await db.query("DELETE FROM campaigns WHERE id = ?", [id]);
-        res.json({ success: true, message: 'کمپین با موفقیت حذف شد.' });
+        await conn.beginTransaction();
+        await conn.query("UPDATE campaigns SET status = 'stopped' WHERE id = ?", [id]);
+        const [deletedResults] = await conn.query('DELETE FROM results WHERE campaign_id = ?', [id]);
+        const [deletedKeywords] = await conn.query('DELETE FROM keywords WHERE campaign_id = ?', [id]);
+        const [deletedCampaign] = await conn.query('DELETE FROM campaigns WHERE id = ?', [id]);
+        await conn.commit();
+
+        if ((deletedCampaign?.affectedRows || 0) === 0) {
+            return res.json({ success: false, message: 'campaign not found' });
+        }
+
+        return res.json({
+            success: true,
+            message: 'campaign deleted',
+            deleted: {
+                campaigns: deletedCampaign.affectedRows || 0,
+                keywords: deletedKeywords.affectedRows || 0,
+                results: deletedResults.affectedRows || 0
+            }
+        });
     } catch (err) {
+        await conn.rollback();
         res.json({ success: false, message: err.message });
+    } finally {
+        conn.release();
     }
 });
 
@@ -545,6 +693,47 @@ app.get('/report/:id', requireLogin, async (req, res) => {
             [id]
         );
 
+        const [channelSentimentRows] = await db.query(
+            `
+            SELECT
+                channel_id,
+                MAX(channel_name) AS channel_name,
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN analysis_result = 'approve' THEN 1 ELSE 0 END) AS approve_count,
+                SUM(CASE WHEN analysis_result = 'reject' THEN 1 ELSE 0 END) AS reject_count,
+                SUM(CASE WHEN analysis_result = 'not related' THEN 1 ELSE 0 END) AS not_related_count
+            FROM results
+            WHERE campaign_id = ?
+            GROUP BY channel_id
+            HAVING COUNT(*) > 0
+            `,
+            [id]
+        );
+
+        const scoredChannels = channelSentimentRows.map((r) => {
+            const total = Number(r.total_count || 0);
+            const approve = Number(r.approve_count || 0);
+            const reject = Number(r.reject_count || 0);
+            const notRelated = Number(r.not_related_count || 0);
+            const score = total > 0 ? ((approve - reject) / total) : 0;
+            return {
+                ...r,
+                total_count: total,
+                approve_count: approve,
+                reject_count: reject,
+                not_related_count: notRelated,
+                sentiment_score: score
+            };
+        });
+
+        const topPositiveChannels = [...scoredChannels]
+            .sort((a, b) => (b.sentiment_score - a.sentiment_score) || (b.total_count - a.total_count))
+            .slice(0, 10);
+
+        const topNegativeChannels = [...scoredChannels]
+            .sort((a, b) => (a.sentiment_score - b.sentiment_score) || (b.total_count - a.total_count))
+            .slice(0, 10);
+
         const keywordTotalsMap = new Map();
         for (const r of keywordChannelRows) {
             const kw = r.keyword || '(بدون کلمه کلیدی)';
@@ -561,7 +750,17 @@ app.get('/report/:id', requireLogin, async (req, res) => {
             if (stats[r.analysis_result] !== undefined) stats[r.analysis_result]++;
         });
 
-        res.render('report', { user: req.session.username, campaign: campaigns[0], results, stats, keywordTotals, keywordChannelRows, channelTotalsRows });
+        res.render('report', {
+            user: req.session.username,
+            campaign: campaigns[0],
+            results,
+            stats,
+            keywordTotals,
+            keywordChannelRows,
+            channelTotalsRows,
+            topPositiveChannels,
+            topNegativeChannels
+        });
     } catch (err) {
         console.error(err);
         res.status(500).send('Server Error');
@@ -617,6 +816,9 @@ app.use((err, req, res, next) => {
 
 const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    if (SESSION_SECRET === 'change-me-in-env') {
+        logger.warn('Using default SESSION_SECRET. Set SESSION_SECRET in .env for production.');
+    }
     ensureSchema();
     resumeActiveCampaigns();
 });
